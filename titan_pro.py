@@ -42,13 +42,6 @@ def analyze_audio(api_key, audio_bytes, mode, target_text=None):
         
     genai.configure(api_key=api_key)
     
-    # Write audio to temp file so Gemini can 'hear' it
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
-        tmp_file.write(audio_bytes)
-        tmp_file_path = tmp_file.name
-
-    myfile = genai.upload_file(tmp_file_path, mime_type="audio/wav")
-    
     # --- THE "PROFESSOR HIGGINS" PROMPT ---
     # This is the "Brain" tuned for Indian -> British conversion
     base_prompt = """
@@ -97,9 +90,12 @@ def analyze_audio(api_key, audio_bytes, mode, target_text=None):
 
     model = genai.GenerativeModel("gemini-1.5-flash")
     with st.spinner("🤖 AI is analyzing your tongue placement and rhythm..."):
-        response = model.generate_content([myfile, system_prompt])
+        # We use INLINE data to avoid file upload 404 errors
+        response = model.generate_content([
+            {'mime_type': 'audio/wav', 'data': audio_bytes}, 
+            system_prompt
+        ])
     
-    os.unlink(tmp_file_path) # Cleanup
     return response.text
 
 # --- SIDEBAR ---
